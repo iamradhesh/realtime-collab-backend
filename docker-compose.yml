@@ -1,48 +1,64 @@
+version: "3.9"
+
 services:
-  # Main API Service [cite: 18, 27]
+  # ----------------------------
+  # Main API Service
+  # ----------------------------
   app:
     build: .
     container_name: workspace_api
     ports:
       - "5000:5000"
-    env_file: .env
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=${DATABASE_URL} # Neon Cloud URL [cite: 76]
-      - REDIS_URL=${REDIS_URL}       # Upstash Cloud URL [cite: 77]
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL}
     depends_on:
       rabbitmq:
         condition: service_healthy
+    restart: unless-stopped
 
-  # Background Worker [cite: 68]
+  # ----------------------------
+  # Background Worker
+  # ----------------------------
   worker:
     build: .
     container_name: workspace_worker
-    # Command to start your worker script defined in package.json
-    command: npm run worker 
-    env_file: .env
+    command: npm run worker
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
+      DATABASE_URL: ${DATABASE_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL}
     depends_on:
       rabbitmq:
         condition: service_healthy
+    restart: unless-stopped
 
-  # RabbitMQ: For Asynchronous Job Processing [cite: 63, 67]
+  # ----------------------------
+  # RabbitMQ
+  # ----------------------------
   rabbitmq:
     image: rabbitmq:3-management
     container_name: workspace_rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
+    env_file:
+      - .env
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    restart: unless-stopped
 
 volumes:
   rabbitmq_data:
